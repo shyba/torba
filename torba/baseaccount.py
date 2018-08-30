@@ -212,12 +212,12 @@ class BaseAccount:
         self.address_generator = self.address_generators[generator_name]
         self.receiving, self.change = self.address_generator.from_dict(self, address_generator)
         self.address_managers = {self.receiving, self.change}
-        ledger.add_account(self)
+        # ledger.add_account(self)
         wallet.add_account(self)
 
     @classmethod
     def generate(cls, ledger: 'baseledger.BaseLedger', wallet: 'basewallet.Wallet',
-                 name: str = None, address_generator: dict = None):
+                 name: str = None, address_generator: dict = None) -> defer.Deferred:
         return cls.from_dict(ledger, wallet, {
             'name': name,
             'seed': cls.mnemonic_class().make_seed(),
@@ -231,7 +231,8 @@ class BaseAccount:
         )
 
     @classmethod
-    def from_dict(cls, ledger: 'baseledger.BaseLedger', wallet: 'basewallet.Wallet', d: dict):
+    @defer.inlineCallbacks
+    def from_dict(cls, ledger: 'baseledger.BaseLedger', wallet: 'basewallet.Wallet', d: dict) -> defer.Deferred:
         seed = d.get('seed', '')
         private_key = d.get('private_key', '')
         public_key = None
@@ -248,7 +249,7 @@ class BaseAccount:
         name = d.get('name')
         if not name:
             name = 'Account #{}'.format(public_key.address)
-        return cls(
+        klass = cls(
             ledger=ledger,
             wallet=wallet,
             name=name,
@@ -258,6 +259,8 @@ class BaseAccount:
             public_key=public_key,
             address_generator=d.get('address_generator', {})
         )
+        yield ledger.add_account(klass)
+        return klass
 
     def to_dict(self):
         private_key = self.private_key
