@@ -8,6 +8,7 @@ class ReconnectTests(IntegrationTestCase):
     VERBOSE = False
 
     async def test_connection_drop_still_receives_events_after_reconnected(self):
+        await d2f(self.ledger.update_account(self.account))
         address1 = await d2f(self.account.receiving.get_or_create_usable_address())
         self.ledger.network.client.connectionLost()
         sendtxid = await self.blockchain.send_to_address(address1, 1.1337)
