@@ -5,6 +5,7 @@ from itertools import cycle
 from twisted.internet import defer, reactor, protocol
 from twisted.application.internet import ClientService, CancelledError
 from twisted.internet.endpoints import clientFromString
+from twisted.internet.task import LoopingCall
 from twisted.protocols.basic import LineOnlyReceiver
 from twisted.python import failure
 
@@ -24,6 +25,7 @@ class StratumClientProtocol(LineOnlyReceiver):
         self.lookup_table = {}
         self.session = {}
         self.network = None
+        self.ping_loop = LoopingCall(self.ping)
 
         self.on_disconnected_controller = StreamController()
         self.on_disconnected = self.on_disconnected_controller.stream
@@ -69,8 +71,11 @@ class StratumClientProtocol(LineOnlyReceiver):
             # Supported only by the socket transport,
             # but there's really no better place in code to trigger this.
             log.warning("Error setting up socket: %s", err)
+        self.ping_loop.start(TIMEOUT)
 
     def connectionLost(self, reason=None):
+        if self.ping_loop.running:
+            self.ping_loop.stop()
         self.connected = 0
         self.on_disconnected_controller.add(True)
         for deferred in self.lookup_table.values():
@@ -111,12 +116,15 @@ class StratumClientProtocol(LineOnlyReceiver):
         log.debug('sent: %s', message)
         self.sendLine(message.encode('latin-1'))
         d = self.lookup_table[message_id] = defer.Deferred()
-        d.addTimeout(
-            TIMEOUT, reactor, onTimeoutCancel=lambda *_: failure.Failure(TimeoutError(
-                "Timeout: Stratum request for '%s' took more than %s seconds" % (method, TIMEOUT)))
-        )
         return d
 
+    def ping(self):
+        if len(self.lookup_table):
+            return # we aren't idle
+        # use server.ping when support for Stratum 1.0 gets dropped
+        return self.rpc('server.version').addTimeout(
+            TIMEOUT // 3, reactor, onTimeoutCancel=lambda *_: self.connectionLost()
+        )
 
 class StratumClientFactory(protocol.ClientFactory):
 
