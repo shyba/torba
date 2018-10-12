@@ -7,7 +7,6 @@ from twisted.application.internet import ClientService, CancelledError
 from twisted.internet.endpoints import clientFromString
 from twisted.internet.task import LoopingCall
 from twisted.protocols.basic import LineOnlyReceiver
-from twisted.python import failure
 
 from torba import __version__
 from torba.stream import StreamController
@@ -119,7 +118,7 @@ class StratumClientProtocol(LineOnlyReceiver):
         return d
 
     def ping(self):
-        if len(self.lookup_table):
+        if self.lookup_table:
             return # we aren't idle
         # use server.ping when support for Stratum 1.0 gets dropped
         return self.rpc('server.version').addTimeout(
