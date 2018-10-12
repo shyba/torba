@@ -355,11 +355,11 @@ class BaseLedger(metaclass=LedgerRegistry):
                 continue
             if remote_height > 0:
                 deferreds.append(
-                    self.network.get_merkle(hex_id, remote_height).addBoth(
+                    self.network.get_merkle(hex_id, remote_height).addCallback(
                         lambda result, txid: proofs.__setitem__(txid, result), hex_id)
                 )
             deferreds.append(
-                self.network.get_transaction(hex_id).addBoth(
+                self.network.get_transaction(hex_id).addCallback(
                     lambda result, txid: network_txs.__setitem__(txid, result), hex_id)
             )
         yield defer.DeferredList(deferreds)
