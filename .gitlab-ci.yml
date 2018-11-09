@@ -1,0 +1,29 @@
+before_script:
+    - pip install git+https://github.com/PyCQA/pylint.git
+    - pip install mypy
+    - pip install -e .[test,server]
+    - pip install tox-travis
+
+code_quality:
+    script:
+        - pylint --rcfile=setup.cfg torba
+        - mypy --ignore-missing-imports torba
+
+unit_tests:
+    image: python:3.6
+    variables:
+        TESTTYPE: unit
+    script:
+        - tox
+
+integration_tests:
+    image: python:3.6
+    variables:
+        TESTTYPE: integration
+    script:
+        - tox
+
+after_script:
+  - pip install coverage
+  - coverage combine tests/
+  - bash <(curl -s https://codecov.io/bash)
